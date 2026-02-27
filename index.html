@@ -1,0 +1,1336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Linux Unlearning — A Course for Windows Natives</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;700&family=Syne:wght@400;700;800&display=swap');
+
+  :root {
+    --bg: #0a0c0f;
+    --surface: #111418;
+    --border: #1e2530;
+    --accent: #00e5a0;
+    --accent2: #ff6b35;
+    --accent3: #7b8cde;
+    --text: #c8d0dc;
+    --muted: #4a5568;
+    --warn: #f6c90e;
+    --correct: #00e5a0;
+    --wrong: #ff4c6a;
+    --code-bg: #0d1117;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    line-height: 1.7;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* SCANLINE OVERLAY */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.05) 2px,
+      rgba(0,0,0,0.05) 4px
+    );
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  /* NOISE TEXTURE */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 9998;
+    opacity: 0.4;
+  }
+
+  /* ===== LAYOUT ===== */
+  .shell {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 0 24px 80px;
+  }
+
+  /* ===== HERO ===== */
+  .hero {
+    padding: 80px 0 60px;
+    border-bottom: 1px solid var(--border);
+    animation: fadeSlide 0.8s ease both;
+  }
+
+  .prompt-line {
+    color: var(--accent);
+    font-size: 12px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+    opacity: 0.7;
+  }
+
+  .prompt-line::before { content: '$ '; }
+
+  .hero h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(2.2rem, 6vw, 4rem);
+    font-weight: 800;
+    line-height: 1.1;
+    color: #fff;
+    margin-bottom: 20px;
+  }
+
+  .hero h1 span { color: var(--accent); }
+
+  .hero p {
+    color: var(--muted);
+    max-width: 540px;
+    font-size: 13px;
+    line-height: 1.8;
+  }
+
+  .hero-tags {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 24px;
+  }
+
+  .tag {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 4px 12px;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    border-radius: 2px;
+  }
+
+  .tag.active { border-color: var(--accent); color: var(--accent); }
+
+  /* ===== TOC ===== */
+  .toc {
+    border: 1px solid var(--border);
+    background: var(--surface);
+    padding: 24px;
+    margin: 48px 0;
+    position: relative;
+    animation: fadeSlide 0.9s ease both;
+  }
+
+  .toc::before {
+    content: 'CONTENTS';
+    position: absolute;
+    top: -9px;
+    left: 16px;
+    background: var(--surface);
+    padding: 0 8px;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    color: var(--accent);
+  }
+
+  .toc-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px 32px;
+  }
+
+  .toc a {
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 12px;
+    transition: color 0.2s;
+    display: flex;
+    gap: 8px;
+    padding: 4px 0;
+  }
+
+  .toc a:hover { color: var(--accent); }
+  .toc a .num { color: var(--border); }
+
+  /* ===== SECTIONS ===== */
+  .section {
+    margin-top: 72px;
+    animation: fadeSlide 1s ease both;
+  }
+
+  .section-header {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    margin-bottom: 32px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .section-num {
+    font-size: 11px;
+    color: var(--accent);
+    letter-spacing: 0.15em;
+    opacity: 0.6;
+    white-space: nowrap;
+  }
+
+  .section h2 {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: #fff;
+  }
+
+  /* ===== CONCEPT CARDS ===== */
+  .concept-card {
+    border: 1px solid var(--border);
+    background: var(--surface);
+    padding: 24px;
+    margin-bottom: 16px;
+    position: relative;
+    transition: border-color 0.2s;
+  }
+
+  .concept-card:hover { border-color: var(--accent3); }
+
+  .concept-card .label {
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--accent3);
+    margin-bottom: 10px;
+  }
+
+  .concept-card p { color: var(--text); font-size: 13px; line-height: 1.85; }
+
+  /* ===== COMPARISON ===== */
+  .compare {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    margin: 24px 0;
+    overflow: hidden;
+  }
+
+  .compare-col {
+    background: var(--surface);
+    padding: 20px;
+  }
+
+  .compare-col .col-label {
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .compare-col.win .col-label { color: var(--accent3); }
+  .compare-col.linux .col-label { color: var(--accent); }
+
+  .compare-col ul { list-style: none; }
+  .compare-col ul li {
+    font-size: 12px;
+    color: var(--muted);
+    padding: 3px 0;
+    padding-left: 12px;
+    position: relative;
+  }
+
+  .compare-col.win ul li::before { content: '►'; position: absolute; left: 0; color: var(--accent3); font-size: 8px; top: 5px; }
+  .compare-col.linux ul li::before { content: '$'; position: absolute; left: 0; color: var(--accent); font-size: 10px; top: 3px; }
+
+  /* ===== CODE BLOCK ===== */
+  .code-block {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    padding: 20px;
+    margin: 16px 0;
+    overflow-x: auto;
+    position: relative;
+  }
+
+  .code-block .cb-label {
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 10px;
+    display: block;
+  }
+
+  .code-block code {
+    display: block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12.5px;
+    line-height: 1.9;
+    color: #e2e8f0;
+    white-space: pre;
+  }
+
+  .code-block code .cmd { color: var(--accent); }
+  .code-block code .arg { color: var(--accent2); }
+  .code-block code .comment { color: var(--muted); font-style: italic; }
+  .code-block code .path { color: var(--warn); }
+  .code-block code .out { color: #6b7280; }
+
+  /* ===== ANALOGY BOX ===== */
+  .analogy {
+    border: 1px solid var(--warn);
+    background: rgba(246,201,14,0.04);
+    padding: 20px 24px;
+    margin: 20px 0;
+    position: relative;
+  }
+
+  .analogy::before {
+    content: 'WINDOWS BRAIN → LINUX BRAIN';
+    position: absolute;
+    top: -9px; left: 16px;
+    background: var(--bg);
+    padding: 0 8px;
+    font-size: 9px;
+    letter-spacing: 0.18em;
+    color: var(--warn);
+  }
+
+  .analogy p { font-size: 12.5px; color: var(--text); }
+  .analogy strong { color: var(--warn); }
+
+  /* ===== QUIZ ===== */
+  .quiz-block {
+    border: 1px solid var(--border);
+    background: var(--surface);
+    padding: 28px;
+    margin: 32px 0;
+    position: relative;
+  }
+
+  .quiz-block::before {
+    content: 'PRACTICE';
+    position: absolute;
+    top: -9px; left: 16px;
+    background: var(--surface);
+    padding: 0 8px;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    color: var(--accent2);
+  }
+
+  .quiz-q {
+    font-size: 13px;
+    color: #fff;
+    margin-bottom: 16px;
+    line-height: 1.6;
+  }
+
+  .quiz-q .q-num {
+    color: var(--accent2);
+    margin-right: 8px;
+  }
+
+  .quiz-options {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .quiz-option {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 10px 16px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    text-align: left;
+    cursor: pointer;
+    transition: all 0.15s;
+    border-radius: 2px;
+  }
+
+  .quiz-option:hover:not(:disabled) {
+    border-color: var(--accent3);
+    color: var(--text);
+    background: var(--surface);
+  }
+
+  .quiz-option.correct {
+    border-color: var(--correct);
+    color: var(--correct);
+    background: rgba(0,229,160,0.07);
+  }
+
+  .quiz-option.wrong {
+    border-color: var(--wrong);
+    color: var(--wrong);
+    background: rgba(255,76,106,0.07);
+  }
+
+  .quiz-feedback {
+    display: none;
+    font-size: 12px;
+    padding: 12px 16px;
+    border-left: 3px solid var(--correct);
+    background: rgba(0,229,160,0.05);
+    color: var(--text);
+    line-height: 1.7;
+  }
+
+  .quiz-feedback.show { display: block; }
+  .quiz-feedback.wrong-fb { border-color: var(--wrong); background: rgba(255,76,106,0.05); }
+
+  /* ===== TERMINAL PRACTICE ===== */
+  .terminal-practice {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    margin: 24px 0;
+    overflow: hidden;
+  }
+
+  .terminal-bar {
+    background: #1a1e27;
+    padding: 8px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .dot { width: 10px; height: 10px; border-radius: 50%; }
+  .dot.r { background: #ff5f57; }
+  .dot.y { background: #febc2e; }
+  .dot.g { background: #28c840; }
+
+  .terminal-title {
+    font-size: 11px;
+    color: var(--muted);
+    margin-left: 8px;
+    letter-spacing: 0.1em;
+  }
+
+  .terminal-body { padding: 20px; }
+
+  .terminal-body .t-prompt {
+    color: var(--accent);
+    font-size: 12.5px;
+  }
+
+  .terminal-body .t-prompt::before { content: 'user@linux:~$ '; }
+
+  .terminal-input-wrap {
+    display: flex;
+    align-items: center;
+    margin-top: 8px;
+    gap: 8px;
+  }
+
+  .terminal-input-wrap span {
+    color: var(--accent);
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  .terminal-input {
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--border);
+    color: var(--warn);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12.5px;
+    flex: 1;
+    outline: none;
+    padding: 2px 4px;
+  }
+
+  .t-run-btn {
+    background: transparent;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    padding: 4px 14px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.15s;
+    letter-spacing: 0.1em;
+  }
+
+  .t-run-btn:hover { background: var(--accent); color: var(--bg); }
+
+  .t-output {
+    margin-top: 12px;
+    font-size: 12px;
+    color: var(--muted);
+    white-space: pre;
+    line-height: 1.7;
+    min-height: 20px;
+    border-top: 1px solid var(--border);
+    padding-top: 10px;
+    display: none;
+  }
+
+  .t-output.visible { display: block; }
+  .t-output.success { color: var(--correct); }
+  .t-output.error { color: var(--wrong); }
+
+  /* ===== PROGRESS ===== */
+  .progress-bar {
+    position: fixed;
+    top: 0; left: 0;
+    height: 2px;
+    background: var(--accent);
+    transition: width 0.2s;
+    z-index: 10000;
+    box-shadow: 0 0 8px var(--accent);
+  }
+
+  /* ===== VISUAL TREE ===== */
+  .tree {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    padding: 20px 24px;
+    font-size: 12.5px;
+    line-height: 2;
+    color: var(--muted);
+    overflow-x: auto;
+  }
+
+  .tree .dir { color: var(--accent); }
+  .tree .file { color: var(--text); }
+  .tree .special { color: var(--warn); }
+
+  /* ===== CALLOUT ===== */
+  .callout {
+    border-left: 3px solid var(--accent3);
+    background: rgba(123,140,222,0.06);
+    padding: 14px 18px;
+    margin: 16px 0;
+    font-size: 12.5px;
+    color: var(--text);
+    line-height: 1.8;
+  }
+
+  .callout strong { color: var(--accent3); }
+
+  /* ===== SECTION COMPLETE ===== */
+  .section-complete {
+    border: 1px solid var(--border);
+    background: var(--surface);
+    padding: 20px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 40px;
+    cursor: pointer;
+    transition: border-color 0.2s;
+  }
+
+  .section-complete:hover { border-color: var(--accent); }
+
+  .section-complete .sc-text { font-size: 12px; color: var(--muted); }
+  .section-complete .sc-check {
+    width: 28px; height: 28px;
+    border: 2px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    transition: all 0.2s;
+  }
+
+  .section-complete.done .sc-check {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(0,229,160,0.1);
+  }
+
+  /* ===== ANIMATIONS ===== */
+  @keyframes fadeSlide {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+
+  .cursor {
+    display: inline-block;
+    width: 8px;
+    height: 14px;
+    background: var(--accent);
+    margin-left: 2px;
+    animation: blink 1s step-end infinite;
+    vertical-align: middle;
+  }
+
+  /* ===== RESPONSIVE ===== */
+  @media (max-width: 600px) {
+    .compare { grid-template-columns: 1fr; }
+    .toc-grid { grid-template-columns: 1fr; }
+    .hero h1 { font-size: 2rem; }
+  }
+</style>
+</head>
+<body>
+
+<div class="progress-bar" id="progress"></div>
+
+<div class="shell">
+
+  <!-- HERO -->
+  <header class="hero">
+    <div class="prompt-line">linux-unlearning-course v1.0</div>
+    <h1>You Already Know <span>Linux</span>.<br>You Just Don't Know It Yet.<span class="cursor"></span></h1>
+    <p>18 years of Windows built a mental model so deep it feels like reality. This course doesn't just teach Linux — it translates. Expect your assumptions to be the main obstacle.</p>
+    <div class="hero-tags">
+      <span class="tag active">Windows-to-Linux</span>
+      <span class="tag">Filesystem</span>
+      <span class="tag">Cloning & Repos</span>
+      <span class="tag">Permissions</span>
+      <span class="tag">Terminal</span>
+      <span class="tag">Package Mgmt</span>
+    </div>
+  </header>
+
+  <!-- TOC -->
+  <nav class="toc" aria-label="Table of Contents">
+    <div class="toc-grid">
+      <a href="#s1"><span class="num">01</span> The Filesystem Is Not a Drive</a>
+      <a href="#s2"><span class="num">02</span> Paths: Forward Slashes & Roots</a>
+      <a href="#s3"><span class="num">03</span> Everything Is a File</a>
+      <a href="#s4"><span class="num">04</span> Permissions & Ownership</a>
+      <a href="#s5"><span class="num">05</span> The Terminal Is Not CMD</a>
+      <a href="#s6"><span class="num">06</span> Cloning: What It Actually Does</a>
+      <a href="#s7"><span class="num">07</span> Building From Source</a>
+      <a href="#s8"><span class="num">08</span> Package Managers vs Installers</a>
+    </div>
+  </nav>
+
+
+  <!-- ===== SECTION 1 ===== -->
+  <section class="section" id="s1">
+    <div class="section-header">
+      <span class="section-num">01 /</span>
+      <h2>The Filesystem Is Not a Drive</h2>
+    </div>
+
+    <div class="concept-card">
+      <div class="label">the assumption you carry</div>
+      <p>On Windows, your world starts with drives: <code>C:\</code>, <code>D:\</code>, <code>E:\</code>. Each drive is its own island. Storage <em>is</em> the filesystem. The physical device and the logical location are mentally the same thing.</p>
+    </div>
+
+    <div class="analogy">
+      <p><strong>Windows:</strong> "My files are on the C drive." — The drive <em>is</em> the location.<br><br>
+      <strong>Linux:</strong> "My files are at <code>/home/user/</code>." — The location is a <em>point in a single tree</em>. The drive underneath is irrelevant to your path.</p>
+    </div>
+
+    <div class="concept-card">
+      <div class="label">the linux reality</div>
+      <p>Linux has one tree. It starts at <code>/</code> (root). Everything — USB drives, network shares, other physical disks — gets <strong>mounted</strong> into this single tree. A USB might appear at <code>/media/usb0</code>. Another disk might be mounted at <code>/data</code>. No letters. No islands.</p>
+    </div>
+
+    <div class="tree">
+      <div><span class="dir">/</span>                          <span class="comment"># ← the entire universe starts here</span></div>
+      <div>├── <span class="dir">home/</span>                    <span class="comment"># user files (Windows: C:\Users\)</span></div>
+      <div>│   └── <span class="dir">yourname/</span></div>
+      <div>│       ├── <span class="dir">Documents/</span></div>
+      <div>│       └── <span class="dir">Downloads/</span></div>
+      <div>├── <span class="dir">etc/</span>                     <span class="comment"># system config files</span></div>
+      <div>├── <span class="dir">usr/</span>                     <span class="comment"># programs (Windows: Program Files)</span></div>
+      <div>├── <span class="dir">bin/</span>                     <span class="comment"># core executables</span></div>
+      <div>├── <span class="special">dev/</span>                     <span class="comment"># devices ARE files here</span></div>
+      <div>└── <span class="dir">media/</span>                   <span class="comment"># USB drives, external disks mount here</span></div>
+    </div>
+
+    <div class="callout">
+      <strong>Key insight:</strong> When you plug in a USB drive on Linux, the OS doesn't assign it a letter — it <em>attaches</em> it to the tree at a mount point. The folder <code>/media/usb0</code> suddenly has contents. Unplug it, the folder is empty again. The tree is always the tree.
+    </div>
+
+    <div class="quiz-block">
+      <div class="quiz-q"><span class="q-num">Q1.</span> On Linux, you have a second hard drive. Which of these best describes where its files appear?</div>
+      <div class="quiz-options" id="q1-opts">
+        <button class="quiz-option" onclick="answer('q1',this,'wrong')">A) As drive D:\ in the file manager</button>
+        <button class="quiz-option" onclick="answer('q1',this,'correct')">B) At a directory like /mnt/data/ within the single filesystem tree</button>
+        <button class="quiz-option" onclick="answer('q1',this,'wrong')">C) Only accessible from terminal with special commands</button>
+        <button class="quiz-option" onclick="answer('q1',this,'wrong')">D) As a separate root, like /2/</button>
+      </div>
+      <div class="quiz-feedback" id="q1-fb">
+        Correct. The drive is <em>mounted</em> at a directory. From that point, it's just a folder in the tree. The physical reality is abstracted away — this is intentional. Linux doesn't care what the hardware is; it only cares about the tree.
+      </div>
+    </div>
+
+    <div class="section-complete" onclick="markDone(this)" data-section="1">
+      <span class="sc-text">Mark Section 1 Complete</span>
+      <div class="sc-check">○</div>
+    </div>
+  </section>
+
+
+  <!-- ===== SECTION 2 ===== -->
+  <section class="section" id="s2">
+    <div class="section-header">
+      <span class="section-num">02 /</span>
+      <h2>Paths: Forward Slashes & Roots</h2>
+    </div>
+
+    <div class="compare">
+      <div class="compare-col win">
+        <div class="col-label">⊞ Windows Paths</div>
+        <ul>
+          <li><code>C:\Users\John\Documents\file.txt</code></li>
+          <li>Backslash separators</li>
+          <li>Drive letter prefix required</li>
+          <li>Case-insensitive (File.txt = file.txt)</li>
+          <li>Spaces common in paths</li>
+          <li>Relative: <code>.\subfolder\</code></li>
+        </ul>
+      </div>
+      <div class="compare-col linux">
+        <div class="col-label">◌ Linux Paths</div>
+        <ul>
+          <li><code>/home/john/documents/file.txt</code></li>
+          <li>Forward slash separators</li>
+          <li>Always starts from / (or ~)</li>
+          <li>Case-sensitive (File.txt ≠ file.txt)</li>
+          <li>Spaces are pain — avoid them</li>
+          <li>Relative: <code>./subfolder/</code></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="concept-card">
+      <div class="label">special path shorthands</div>
+      <p>
+        <code style="color:var(--accent)">~</code> — your home directory (<code>/home/yourname</code>)<br>
+        <code style="color:var(--accent)">.</code> — current directory<br>
+        <code style="color:var(--accent)">..</code> — parent directory<br>
+        <code style="color:var(--accent)">/</code> — root of the entire system (nothing above this)
+      </p>
+    </div>
+
+    <div class="code-block">
+      <span class="cb-label">path examples</span>
+      <code><span class="cmd">cd</span> <span class="path">/home/user/projects</span>   <span class="comment"># absolute path — always works</span>
+<span class="cmd">cd</span> <span class="path">~/projects</span>             <span class="comment"># ~ expands to /home/user — same result</span>
+<span class="cmd">cd</span> <span class="path">./subfolder</span>            <span class="comment"># relative — from wherever you currently are</span>
+<span class="cmd">cd</span> <span class="path">..</span>                     <span class="comment"># go up one level</span>
+<span class="cmd">cd</span> <span class="path">../../etc</span>              <span class="comment"># up two, then into etc/</span></code>
+    </div>
+
+    <div class="analogy">
+      <p><strong>Case sensitivity will bite you.</strong> On Windows, <code>MyFile.txt</code>, <code>myfile.txt</code>, and <code>MYFILE.TXT</code> are the same file. On Linux they are three completely different files that can coexist in the same directory. Many beginners spend an hour debugging what is simply a capital letter.</p>
+    </div>
+
+    <div class="quiz-block">
+      <div class="quiz-q"><span class="q-num">Q2.</span> You're currently at <code>/home/user/projects/webapp</code>. What does <code>cd ../../documents</code> land you?</div>
+      <div class="quiz-options" id="q2-opts">
+        <button class="quiz-option" onclick="answer('q2',this,'wrong')">A) /home/user/projects/documents</button>
+        <button class="quiz-option" onclick="answer('q2',this,'correct')">B) /home/user/documents</button>
+        <button class="quiz-option" onclick="answer('q2',this,'wrong')">C) /home/documents</button>
+        <button class="quiz-option" onclick="answer('q2',this,'wrong')">D) Error — you can't go up two levels in one command</button>
+      </div>
+      <div class="quiz-feedback" id="q2-fb">
+        Correct. <code>../</code> goes to <code>/home/user/projects</code>, then <code>../</code> again goes to <code>/home/user</code>, then <code>documents</code> descends into it. Each <code>..</code> climbs exactly one level.
+      </div>
+    </div>
+
+    <!-- TERMINAL PRACTICE -->
+    <div class="terminal-practice">
+      <div class="terminal-bar">
+        <div class="dot r"></div><div class="dot y"></div><div class="dot g"></div>
+        <span class="terminal-title">path-practice — simulated terminal</span>
+      </div>
+      <div class="terminal-body">
+        <p style="color:var(--muted);font-size:12px;margin-bottom:12px;">You are at: <span style="color:var(--warn)">/home/user/projects/webapp/src</span></p>
+        <p style="font-size:12px;color:var(--text);margin-bottom:8px;">Type the command to reach <code style="color:var(--accent)">/home/user/projects</code> using a relative path:</p>
+        <div class="terminal-input-wrap">
+          <span>user@linux:~/projects/webapp/src$</span>
+          <input class="terminal-input" id="t1-input" type="text" placeholder="type your command..." autocomplete="off" spellcheck="false">
+          <button class="t-run-btn" onclick="checkTerminal('t1')">RUN</button>
+        </div>
+        <div class="t-output" id="t1-output"></div>
+      </div>
+    </div>
+
+    <div class="section-complete" onclick="markDone(this)" data-section="2">
+      <span class="sc-text">Mark Section 2 Complete</span>
+      <div class="sc-check">○</div>
+    </div>
+  </section>
+
+
+  <!-- ===== SECTION 3 ===== -->
+  <section class="section" id="s3">
+    <div class="section-header">
+      <span class="section-num">03 /</span>
+      <h2>Everything Is a File</h2>
+    </div>
+
+    <div class="concept-card">
+      <div class="label">the deepest linux principle</div>
+      <p>Linux treats nearly everything as a file. Your keyboard: a file in <code>/dev/input/</code>. Your hard disk: <code>/dev/sda</code>. A network socket: a file descriptor. System settings: text files in <code>/etc/</code>. This isn't just trivia — it means the same tools (read, write, pipe) work on almost everything.</p>
+    </div>
+
+    <div class="analogy">
+      <p><strong>Windows:</strong> Settings live in the Registry (a binary database). Device properties live in Device Manager. Each type of thing has its own special tool to access it.<br><br>
+      <strong>Linux:</strong> Want to change a system setting? Open a file in <code>/etc/</code> with a text editor. Want to read from a hardware device? Open its file in <code>/dev/</code>. The <em>tool</em> is always the same.</p>
+    </div>
+
+    <div class="tree">
+      <div><span class="special">/dev/</span>                        <span class="comment"># hardware as files</span></div>
+      <div>├── <span class="special">sda</span>                       <span class="comment"># your primary hard drive</span></div>
+      <div>├── <span class="special">sda1</span>                      <span class="comment"># partition 1 of that drive</span></div>
+      <div>├── <span class="special">tty0</span>                      <span class="comment"># your terminal</span></div>
+      <div>└── <span class="special">null</span>                      <span class="comment"># black hole — write anything, it vanishes</span></div>
+      <div style="margin-top:8px"><span class="dir">/etc/</span>                        <span class="comment"># system config as text files</span></div>
+      <div>├── <span class="file">hostname</span>                  <span class="comment"># one line: your machine's name</span></div>
+      <div>├── <span class="file">hosts</span>                     <span class="comment"># like Windows hosts file, but it matters more</span></div>
+      <div>└── <span class="file">passwd</span>                    <span class="comment"># user accounts (no binary registry)</span></div>
+    </div>
+
+    <div class="callout">
+      <strong>Practical consequence:</strong> On Windows you'd open Device Manager or Registry Editor with a GUI to change system behavior. On Linux you often just <code>nano /etc/some-config-file</code> and save. The learning curve is steep at first, but the surface area of knowledge stays small — it's always files, always text.
+    </div>
+
+    <div class="quiz-block">
+      <div class="quiz-q"><span class="q-num">Q3.</span> You want to change your machine's hostname on Linux. What's the most Linux-native approach?</div>
+      <div class="quiz-options" id="q3-opts">
+        <button class="quiz-option" onclick="answer('q3',this,'wrong')">A) Open a GUI system settings panel</button>
+        <button class="quiz-option" onclick="answer('q3',this,'wrong')">B) Modify the Windows Registry equivalent</button>
+        <button class="quiz-option" onclick="answer('q3',this,'correct')">C) Edit the text file /etc/hostname</button>
+        <button class="quiz-option" onclick="answer('q3',this,'wrong')">D) Use Device Manager</button>
+      </div>
+      <div class="quiz-feedback" id="q3-fb">
+        Exactly. <code>/etc/hostname</code> contains a single line with your machine's name. Open it, change it, save. That's it. This is the "everything is a file" principle in its most direct form.
+      </div>
+    </div>
+
+    <div class="section-complete" onclick="markDone(this)" data-section="3">
+      <span class="sc-text">Mark Section 3 Complete</span>
+      <div class="sc-check">○</div>
+    </div>
+  </section>
+
+
+  <!-- ===== SECTION 4 ===== -->
+  <section class="section" id="s4">
+    <div class="section-header">
+      <span class="section-num">04 /</span>
+      <h2>Permissions & Ownership</h2>
+    </div>
+
+    <div class="concept-card">
+      <div class="label">where windows misleads you</div>
+      <p>Windows has permissions (ACLs), but they're largely invisible to most users. You <em>right-click → Properties → Security</em> and there they are — but most people never touch them. Linux makes permissions unavoidable, visible, and foundational to everything.</p>
+    </div>
+
+    <div class="code-block">
+      <span class="cb-label">reading permissions</span>
+      <code><span class="cmd">ls</span> <span class="arg">-l</span>
+<span class="out">-rw-r--r-- 1 user group  1234 Feb 14  file.txt</span>
+<span class="out">drwxr-xr-x 2 user group  4096 Feb 14  myfolder/</span>
+<span class="out">-rwxr-xr-x 1 root root   8192 Feb 14  script.sh</span></code>
+    </div>
+
+    <div class="concept-card">
+      <div class="label">decoding the permission string</div>
+      <p>
+        <code style="color:var(--warn)">-rw-r--r--</code> breaks down as:<br><br>
+        <code style="color:var(--accent)">-</code> = type (- = file, d = directory)<br>
+        <code style="color:var(--accent)">rw-</code> = owner can read + write<br>
+        <code style="color:var(--accent)">r--</code> = group can only read<br>
+        <code style="color:var(--accent)">r--</code> = everyone else can only read<br><br>
+        <code style="color:var(--accent3)">r</code> = read &nbsp; <code style="color:var(--accent3)">w</code> = write &nbsp; <code style="color:var(--accent3)">x</code> = execute &nbsp; <code style="color:var(--muted)">-</code> = denied
+      </p>
+    </div>
+
+    <div class="code-block">
+      <span class="cb-label">changing permissions</span>
+      <code><span class="comment"># Make a script executable (you MUST do this before running it)</span>
+<span class="cmd">chmod</span> <span class="arg">+x</span> <span class="path">script.sh</span>
+
+<span class="comment"># Give owner read+write+execute, group read, others nothing</span>
+<span class="cmd">chmod</span> <span class="arg">750</span> <span class="path">script.sh</span>
+
+<span class="comment"># Change owner of a file (requires sudo)</span>
+<span class="cmd">sudo chown</span> <span class="arg">username:groupname</span> <span class="path">file.txt</span></code>
+    </div>
+
+    <div class="analogy">
+      <p><strong>The executable bit is invisible on Windows.</strong> On Windows, if a file ends in <code>.exe</code> or <code>.bat</code>, it runs. On Linux, the <em>extension means nothing</em>. A file named <code>script.sh</code> does NOT run until you explicitly set the execute bit with <code>chmod +x</code>. This is security by default, not convenience by default.</p>
+    </div>
+
+    <div class="quiz-block">
+      <div class="quiz-q"><span class="q-num">Q4.</span> You download a shell script and try to run it with <code>./setup.sh</code> — you get "Permission denied". What's the most likely fix?</div>
+      <div class="quiz-options" id="q4-opts">
+        <button class="quiz-option" onclick="answer('q4',this,'wrong')">A) Run it with sudo instead</button>
+        <button class="quiz-option" onclick="answer('q4',this,'correct')">B) chmod +x setup.sh — the execute bit is not set</button>
+        <button class="quiz-option" onclick="answer('q4',this,'wrong')">C) Rename it to setup.exe</button>
+        <button class="quiz-option" onclick="answer('q4',this,'wrong')">D) Move it to /usr/bin/ first</button>
+      </div>
+      <div class="quiz-feedback" id="q4-fb">
+        Correct. <code>chmod +x setup.sh</code> sets the execute bit. The error "Permission denied" when you own the file almost always means the execute bit is missing, not that you lack ownership. <code>sudo</code> would not help here — root also can't execute a file without the execute bit on most Linux systems.
+      </div>
+    </div>
+
+    <div class="section-complete" onclick="markDone(this)" data-section="4">
+      <span class="sc-text">Mark Section 4 Complete</span>
+      <div class="sc-check">○</div>
+    </div>
+  </section>
+
+
+  <!-- ===== SECTION 5 ===== -->
+  <section class="section" id="s5">
+    <div class="section-header">
+      <span class="section-num">05 /</span>
+      <h2>The Terminal Is Not CMD</h2>
+    </div>
+
+    <div class="compare">
+      <div class="compare-col win">
+        <div class="col-label">⊞ Windows CMD / PowerShell</div>
+        <ul>
+          <li>Optional — most tasks have a GUI</li>
+          <li>Limited composability</li>
+          <li>Output is objects (PowerShell)</li>
+          <li>Commands: <code>dir</code>, <code>copy</code>, <code>del</code></li>
+          <li>Rarely used for system config</li>
+          <li>Limited scripting power</li>
+        </ul>
+      </div>
+      <div class="compare-col linux">
+        <div class="col-label">◌ Linux Bash / Zsh</div>
+        <ul>
+          <li>Primary interface — GUI is optional</li>
+          <li>Everything pipes together</li>
+          <li>Output is text — universally</li>
+          <li>Commands: <code>ls</code>, <code>cp</code>, <code>rm</code></li>
+          <li>Terminal IS system configuration</li>
+          <li>Scripting is first-class</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="code-block">
+      <span class="cb-label">essential commands (windows → linux mapping)</span>
+      <code><span class="comment"># Windows: dir    → Linux:</span>
+<span class="cmd">ls</span> <span class="arg">-la</span>                    <span class="comment"># list all files with details</span>
+
+<span class="comment"># Windows: cd     → Linux: same</span>
+<span class="cmd">cd</span> <span class="path">~/projects</span>
+
+<span class="comment"># Windows: copy   → Linux:</span>
+<span class="cmd">cp</span> <span class="path">file.txt</span> <span class="arg">backup.txt</span>
+
+<span class="comment"># Windows: move   → Linux:</span>
+<span class="cmd">mv</span> <span class="path">file.txt</span> <span class="path">./other/</span>      <span class="comment"># also used to rename files</span>
+
+<span class="comment"># Windows: del    → Linux:</span>
+<span class="cmd">rm</span> <span class="path">file.txt</span>
+<span class="cmd">rm</span> <span class="arg">-rf</span> <span class="path">folder/</span>           <span class="comment"># remove folder recursively (no recycle bin)</span>
+
+<span class="comment"># Windows: mkdir  → Linux: same</span>
+<span class="cmd">mkdir</span> <span class="arg">-p</span> <span class="path">a/b/c</span>           <span class="comment"># -p creates parent dirs too</span></code>
+    </div>
+
+    <div class="analogy">
+      <p><strong><code>rm -rf</code> has no undo.</strong> There is no Recycle Bin. No Ctrl+Z. When you delete in the terminal, it's gone. This is not a bug — it's intentional Unix philosophy. This is also why you'll see the warning: never run <code>sudo rm -rf /</code> — that's deleting the entire system.</p>
+    </div>
+
+    <div class="callout">
+      <strong>Pipes are the superpower.</strong> The <code>|</code> character connects commands: the output of one becomes the input of the next. <code>ls -la | grep ".txt"</code> lists files, then filters to only show <code>.txt</code> ones. This composability is what makes the terminal more powerful than any GUI.
+    </div>
+
+    <div class="code-block">
+      <span class="cb-label">pipe examples</span>
+      <code><span class="cmd">ls</span> <span class="arg">-la</span> | <span class="cmd">grep</span> <span class="arg">".sh"</span>           <span class="comment"># find all .sh files</span>
+<span class="cmd">cat</span> <span class="path">log.txt</span> | <span class="cmd">grep</span> <span class="arg">"ERROR"</span>   <span class="comment"># find error lines in a log</span>
+<span class="cmd">ps</span> <span class="arg">aux</span> | <span class="cmd">grep</span> <span class="arg">"python"</span>      <span class="comment"># find running python processes</span>
+<span class="cmd">history</span> | <span class="cmd">grep</span> <span class="arg">"git"</span>         <span class="comment"># find all git commands you've run</span></code>
+    </div>
+
+    <div class="quiz-block">
+      <div class="quiz-q"><span class="q-num">Q5.</span> You want to see a list of all running processes, but only ones that contain the word "node". What command chain does this?</div>
+      <div class="quiz-options" id="q5-opts">
+        <button class="quiz-option" onclick="answer('q5',this,'wrong')">A) ps aux --filter "node"</button>
+        <button class="quiz-option" onclick="answer('q5',this,'wrong')">B) list processes node</button>
+        <button class="quiz-option" onclick="answer('q5',this,'correct')">C) ps aux | grep "node"</button>
+        <button class="quiz-option" onclick="answer('q5',this,'wrong')">D) find / -name "node"</button>
+      </div>
+      <div class="quiz-feedback" id="q5-fb">
+        Correct. <code>ps aux</code> dumps all processes as text. That text is piped into <code>grep "node"</code>, which filters to only lines containing "node". This is the Unix pipe at its purest: two dumb tools producing something smart together.
+      </div>
+    </div>
+
+    <div class="section-complete" onclick="markDone(this)" data-section="5">
+      <span class="sc-text">Mark Section 5 Complete</span>
+      <div class="sc-check">○</div>
+    </div>
+  </section>
+
+
+  <!-- ===== SECTION 6 ===== -->
+  <section class="section" id="s6">
+    <div class="section-header">
+      <span class="section-num">06 /</span>
+      <h2>Cloning: What It Actually Does</h2>
+    </div>
+
+    <div class="concept-card">
+      <div class="label">what you probably thought</div>
+      <p>If you've used Windows and maybe GitHub Desktop or downloaded a zip: "cloning" felt like downloading a folder. You get the files. You can look at them. Maybe run them if you're lucky.</p>
+    </div>
+
+    <div class="concept-card">
+      <div class="label">what git clone actually does</div>
+      <p>Git clone downloads the entire <em>history</em> of a project, not just the current files. Every commit, every branch, every contributor's changes — compressed into a hidden <code>.git/</code> folder. What you see in the directory is just the <em>checked out</em> version of the latest commit.</p>
+    </div>
+
+    <div class="code-block">
+      <span class="cb-label">cloning a repository</span>
+      <code><span class="comment"># Basic clone — downloads repo into a folder with the repo's name</span>
+<span class="cmd">git clone</span> <span class="arg">https://github.com/user/repo.git</span>
+
+<span class="comment"># Clone into a specific folder name</span>
+<span class="cmd">git clone</span> <span class="arg">https://github.com/user/repo.git</span> <span class="path">my-project</span>
+
+<span class="comment"># What you now have:</span>
+<span class="out">my-project/</span>
+<span class="out">├── .git/          ← entire history lives here (don't touch)</span>
+<span class="out">├── README.md</span>
+<span class="out">├── src/</span>
+<span class="out">└── package.json</span>
+
+<span class="comment"># Verify it worked — see the latest commits</span>
+<span class="cmd">cd</span> <span class="path">my-project</span>
+<span class="cmd">git log</span> <span class="arg">--oneline</span></code>
+    </div>
+
+    <div class="analogy">
+      <p><strong>Think of <code>.git/</code> as the project's DNA.</strong> The files you see are the organism. The <code>.git/</code> folder is the genome — containing every mutation the project ever went through. You can travel back to any point in history, create branches, merge changes. Never delete <code>.git/</code>. If you do, you have files but no history, no version control.</p>
+    </div>
+
+    <div class="callout">
+      <strong>Clone vs Download ZIP:</strong> GitHub lets you download a ZIP. That gives you the files but <em>no <code>.git/</code> folder</em>. You cannot commit, push, or track changes. Always clone when you intend to work on the code.
+    </div>
+
+    <div class="code-block">
+      <span class="cb-label">after cloning — checking status</span>
+      <code><span class="cmd">git status</span>
+<span class="out">On branch main</span>
+<span class="out">Your branch is up to date with 'origin/main'.</span>
+<span class="out">nothing to commit, working tree clean</span>
+
+<span class="cmd">git remote</span> <span class="arg">-v</span>
+<span class="out">origin  https://github.com/user/repo.git (fetch)</span>
+<span class="out">origin  https://github.com/user/repo.git (push)</span>
+
+<span class="comment"># "origin" is the name for the remote you cloned from</span>
+<span class="comment"># You can have multiple remotes (e.g., upstream for the original project)</span></code>
+    </div>
+
+    <div class="quiz-block">
+      <div class="quiz-q"><span class="q-num">Q6.</span> You clone a repo and accidentally delete the <code>.git/</code> folder. What have you lost?</div>
+      <div class="quiz-options" id="q6-opts">
+        <button class="quiz-option" onclick="answer('q6',this,'wrong')">A) Nothing important — that folder just stores metadata</button>
+        <button class="quiz-option" onclick="answer('q6',this,'wrong')">B) Your SSH keys</button>
+        <button class="quiz-option" onclick="answer('q6',this,'correct')">C) The entire version history, all branches, and the connection to the remote</button>
+        <button class="quiz-option" onclick="answer('q6',this,'wrong')">D) Only the commit messages, not the actual code changes</button>
+      </div>
+      <div class="quiz-feedback" id="q6-fb">
+        Correct. The <code>.git/</code> folder IS the repository. Without it, you have plain files with no history, no branches, no remote connection. You'd need to re-clone. The files themselves are untouched, but they're no longer a git repository.
+      </div>
+    </div>
+
+    <div class="section-complete" onclick="markDone(this)" data-section="6">
+      <span class="sc-text">Mark Section 6 Complete</span>
+      <div class="sc-check">○</div>
+    </div>
+  </section>
+
+
+  <!-- ===== SECTION 7 ===== -->
+  <section class="section" id="s7">
+    <div class="section-header">
+      <span class="section-num">07 /</span>
+      <h2>Building From Source</h2>
+    </div>
+
+    <div class="concept-card">
+      <div class="label">the windows expectation</div>
+      <p>On Windows, you rarely build software. You run an installer (<code>setup.exe</code>), click Next several times, and the program appears in your Start Menu. Someone else compiled everything. You consume the result.</p>
+    </div>
+
+    <div class="concept-card">
+      <div class="label">the linux difference</div>
+      <p>Linux gives you the source code and the tools to compile it yourself. This is power — you can modify anything, understand what you're installing, and build for your exact system. It's also responsibility — you need to understand the process.</p>
+    </div>
+
+    <div class="code-block">
+      <span class="cb-label">the typical build-from-source flow</span>
+      <code><span class="comment"># Step 1: Clone or download the source</span>
+<span class="cmd">git clone</span> <span class="arg">https://github.com/project/tool.git</span>
+<span class="cmd">cd</span> <span class="path">tool</span>
+
+<span class="comment"># Step 2: Install dependencies (what the project NEEDS to build)</span>
+<span class="cmd">sudo apt install</span> <span class="arg">build-essential libssl-dev</span>
+
+<span class="comment"># Step 3: Configure (checks your system, sets build options)</span>
+<span class="cmd">./configure</span>
+
+<span class="comment"># Step 4: Compile (converts source code → binary executable)</span>
+<span class="cmd">make</span>
+
+<span class="comment"># Step 5: Install (copies the binary to /usr/local/bin so it runs anywhere)</span>
+<span class="cmd">sudo make install</span></code>
+    </div>
+
+    <div class="analogy">
+      <p><strong><code>make</code> is not magic — it's a recipe.</strong> The <code>Makefile</code> in the project directory is literally a list of instructions: "to build this, run these compiler commands in this order." When you run <code>make</code>, you're executing that recipe. When it fails, the error tells you exactly which ingredient (dependency) is missing.</p>
+    </div>
+
+    <div class="callout">
+      <strong>Modern projects often skip the classic <code>./configure && make</code></strong> pattern. You might see <code>cmake</code>, <code>meson</code>, <code>cargo build</code> (Rust), or <code>go build</code> instead. The concept is the same: configure, compile, install. The tools change, the flow doesn't.
+    </div>
+
+    <div class="code-block">
+      <span class="cb-label">when build fails — typical dependency error</span>
+      <code><span class="out">checking for ssl/ssl.h... no</span>
+<span class="out">configure: error: OpenSSL not found.</span>
+<span class="out">Install libssl-dev and try again.</span>
+
+<span class="comment"># The fix: install what's missing</span>
+<span class="cmd">sudo apt install</span> <span class="arg">libssl-dev</span>
+
+<span class="comment"># Then re-run configure</span>
+<span class="cmd">./configure</span></code>
+    </div>
+
+    <div class="quiz-block">
+      <div class="quiz-q"><span class="q-num">Q7.</span> You run <code>./configure</code> and it fails saying a library is not found. What's the correct next step?</div>
+      <div class="quiz-options" id="q7-opts">
+        <button class="quiz-option" onclick="answer('q7',this,'wrong')">A) Run sudo ./configure to give it more permissions</button>
+        <button class="quiz-option" onclick="answer('q7',this,'correct')">B) Install the missing library using your package manager, then re-run ./configure</button>
+        <button class="quiz-option" onclick="answer('q7',this,'wrong')">C) Skip configure and go straight to make</button>
+        <button class="quiz-option" onclick="answer('q7',this,'wrong')">D) Re-clone the repository</button>
+      </div>
+      <div class="quiz-feedback" id="q7-fb">
+        Correct. The configure script checks your system for all the libraries the project needs. If one is missing, you install it (usually <code>sudo apt install lib-something-dev</code> — notice the <code>-dev</code> suffix, which includes the header files needed for compilation), then re-run <code>./configure</code>. Permissions won't fix a missing library.
+      </div>
+    </div>
+
+    <div class="section-complete" onclick="markDone(this)" data-section="7">
+      <span class="sc-text">Mark Section 7 Complete</span>
+      <div class="sc-check">○</div>
+    </div>
+  </section>
+
+
+  <!-- ===== SECTION 8 ===== -->
+  <section class="section" id="s8">
+    <div class="section-header">
+      <span class="section-num">08 /</span>
+      <h2>Package Managers vs Installers</h2>
+    </div>
+
+    <div class="compare">
+      <div class="compare-col win">
+        <div class="col-label">⊞ Windows: Manual Installation</div>
+        <ul>
+          <li>Google the software name</li>
+          <li>Find download page</li>
+          <li>Download .exe or .msi</li>
+          <li>Run installer wizard</li>
+          <li>Updates? Google it again</li>
+          <li>Uninstall? Add/Remove Programs</li>
+        </ul>
+      </div>
+      <div class="compare-col linux">
+        <div class="col-label">◌ Linux: Package Manager</div>
+        <ul>
+          <li><code>sudo apt install git</code></li>
+          <li>That's it. Done.</li>
+          <li>Updates: <code>sudo apt upgrade</code></li>
+          <li>Remove: <code>sudo apt remove git</code></li>
+          <li>Verified, secure packages</li>
+          <li>Dependency resolution automatic</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="code-block">
+      <span class="cb-label">apt — the package manager for debian/ubuntu</span>
+      <code><span class="comment"># Update the list of available packages (do this first)</span>
+<span class="cmd">sudo apt update</span>
+
+<span class="comment"># Upgrade all installed packages to latest versions</span>
+<span class="cmd">sudo apt upgrade</span>
+
+<span class="comment"># Install a package</span>
+<span class="cmd">sudo apt install</span> <span class="arg">nodejs</span>
+
+<span class="comment"># Search for a package</span>
+<span class="cmd">apt search</span> <span class="arg">image editor</span>
+
+<span class="comment"># See info about a package before installing</span>
+<span class="cmd">apt show</span> <span class="arg">nodejs</span>
+
+<span class="comment"># Remove a package</span>
+<span class="cmd">sudo apt remove</span> <span class="arg">nodejs</span>
+
+<span class="comment"># Remove package AND its config files</span>
+<span class="cmd">sudo apt purge</span> <span class="arg">nodejs</span></code>
+    </div>
+
+    <div class="analogy">
+      <p><strong>apt is the App Store, but for the entire OS.</strong> Everything — system tools, development libraries, GUI apps, fonts — comes from the same vetted source. On Windows you'd visit 12 different websites to set up a dev environment. On Linux: one terminal, one command per tool. The package manager also tracks every dependency, so uninstalling one thing cleanly removes everything it depended on.</p>
+    </div>
+
+    <div class="callout">
+      <strong>Different distros, different managers:</strong> Ubuntu/Debian → <code>apt</code>. Fedora/RHEL → <code>dnf</code>. Arch → <code>pacman</code>. The commands differ, but the concept is identical. If you learn <code>apt</code>, understanding the others is minutes of reading, not hours of relearning.
+    </div>
+
+    <div class="quiz-block">
+      <div class="quiz-q"><span class="q-num">Q8.</span> You want to install git on Ubuntu. <code>sudo apt install git</code> returns "Unable to locate package git". What's the most likely fix?</div>
+      <div class="quiz-options" id="q8-opts">
+        <button class="quiz-option" onclick="answer('q8',this,'wrong')">A) Download git.exe from the git website</button>
+        <button class="quiz-option" onclick="answer('q8',this,'wrong')">B) Use a different package name: sudo apt install github</button>
+        <button class="quiz-option" onclick="answer('q8',this,'correct')">C) Run sudo apt update first to refresh the package list, then try again</button>
+        <button class="quiz-option" onclick="answer('q8',this,'wrong')">D) You need to add sudo before the package name too: sudo apt install sudo git</button>
+      </div>
+      <div class="quiz-feedback" id="q8-fb">
+        Correct. <code>apt update</code> downloads the latest list of available packages from the repository servers. Without a recent update, apt searches an outdated local cache and may not know the package exists. Always <code>sudo apt update</code> before installing anything, especially on a fresh system.
+      </div>
+    </div>
+
+    <div class="quiz-block" style="margin-top:24px;">
+      <div class="quiz-q"><span class="q-num">FINAL.</span> A friend sends you a GitHub link to a Node.js project and says "just build it and run it". Put these steps in your head: what's the complete sequence on a fresh Linux install?</div>
+      <div class="quiz-options" id="qf-opts">
+        <button class="quiz-option" onclick="answer('qf',this,'wrong')">A) Download ZIP → extract → double-click index.js</button>
+        <button class="quiz-option" onclick="answer('qf',this,'correct')">B) sudo apt install git nodejs npm → git clone [url] → cd [project] → npm install → npm start</button>
+        <button class="quiz-option" onclick="answer('qf',this,'wrong')">C) git clone → npm start (no need to install anything)</button>
+        <button class="quiz-option" onclick="answer('qf',this,'wrong')">D) sudo apt install node → download ZIP → unzip → ./configure && make</button>
+      </div>
+      <div class="quiz-feedback" id="qf-fb">
+        Correct. The sequence is: install the runtime tools (git, node, npm) via apt → clone the repo (gets source + .git history) → cd into it → npm install (installs JS dependencies from package.json) → npm start (runs it). This complete flow — tooling, clone, dependencies, run — is the Linux dev loop.
+      </div>
+    </div>
+
+    <div class="section-complete" onclick="markDone(this)" data-section="8">
+      <span class="sc-text">Mark Section 8 Complete</span>
+      <div class="sc-check">○</div>
+    </div>
+  </section>
+
+
+  <!-- FOOTER -->
+  <footer style="margin-top:80px; padding-top:32px; border-top:1px solid var(--border); text-align:center;">
+    <p style="font-size:11px;color:var(--muted);letter-spacing:0.1em;">LINUX UNLEARNING COURSE — HANDCRAFTED FOR A WINDOWS NATIVE</p>
+    <div id="completion-status" style="margin-top:12px;font-size:12px;color:var(--muted)">
+      <span id="done-count">0</span>/8 sections complete
+    </div>
+  </footer>
+
+</div>
+
+<script>
+  // ===== PROGRESS BAR =====
+  window.addEventListener('scroll', () => {
+    const scrollTop = document.documentElement.scrollTop;
+    const scrollHeight = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+    const progress = (scrollTop / scrollHeight) * 100;
+    document.getElementById('progress').style.width = progress + '%';
+  });
+
+  // ===== QUIZ LOGIC =====
+  function answer(qId, btn, result) {
+    const opts = document.querySelectorAll(`#${qId}-opts .quiz-option`);
+    opts.forEach(o => o.disabled = true);
+    
+    const fb = document.getElementById(`${qId}-fb`);
+    fb.classList.add('show');
+
+    if (result === 'correct') {
+      btn.classList.add('correct');
+      btn.textContent = '✓ ' + btn.textContent;
+      fb.classList.remove('wrong-fb');
+    } else {
+      btn.classList.add('wrong');
+      fb.classList.add('wrong-fb');
+      fb.style.borderColor = 'var(--wrong)';
+      fb.style.background = 'rgba(255,76,106,0.05)';
+      // highlight correct
+      opts.forEach(o => {
+        if (!o.classList.contains('wrong')) {
+          // try to identify correct by re-clicking
+        }
+      });
+    }
+  }
+
+  // ===== TERMINAL PRACTICE =====
+  const terminalAnswers = {
+    't1': {
+      correct: ['cd ../..', 'cd ../../'],
+      success: '/home/user/projects ~\nDirectory changed. ✓',
+      hint: 'Hint: You need to go up exactly 2 levels from /webapp/src. Each .. goes up one.'
+    }
+  };
+
+  function checkTerminal(id) {
+    const input = document.getElementById(`${id}-input`).value.trim();
+    const output = document.getElementById(`${id}-output`);
+    const data = terminalAnswers[id];
+    
+    output.classList.add('visible');
+    
+    if (data.correct.includes(input)) {
+      output.textContent = data.success;
+      output.className = 't-output visible success';
+    } else if (input === '') {
+      output.textContent = 'No command entered.';
+      output.className = 't-output visible error';
+    } else {
+      output.textContent = `bash: ${input}: not the expected path\n${data.hint}`;
+      output.className = 't-output visible error';
+    }
+  }
+
+  document.getElementById('t1-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') checkTerminal('t1');
+  });
+
+  // ===== SECTION COMPLETE =====
+  let doneCount = 0;
+
+  function markDone(el) {
+    if (el.classList.contains('done')) return;
+    el.classList.add('done');
+    el.querySelector('.sc-check').textContent = '✓';
+    el.querySelector('.sc-text').textContent = 'Section Complete';
+    doneCount++;
+    document.getElementById('done-count').textContent = doneCount;
+  }
+</script>
+</body>
+</html>
